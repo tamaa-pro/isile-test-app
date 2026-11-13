@@ -1,3 +1,4 @@
+
 name: Build Isile VPN
 
 on:
@@ -36,11 +37,18 @@ jobs:
         working-directory: project
         run: bash scripts/fetch-natives.sh
 
-      - name: Build APKs
+      - name: Build Release APK only
         working-directory: project
-        run: gradle :app:assembleDebug :app:assembleRelease --stacktrace
+        run: gradle :app:assembleRelease --stacktrace
+
+      - name: Package APK
+        run: |
+          mkdir output
+          cp project/app/build/outputs/apk/release/*.apk output/
+          cd output
+          zip -j ../IsileVPN.zip *.apk
 
       - uses: actions/upload-artifact@v4
         with:
-          name: IsileVPN-apk
-          path: project/app/build/outputs/apk/**/*.apk
+          name: IsileVPN
+          path: IsileVPN.zip
