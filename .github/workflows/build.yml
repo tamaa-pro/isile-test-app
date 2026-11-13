@@ -1,1 +1,46 @@
+name: Build Isile VPN
 
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unzip project
+        run: |
+          ZIP="$(ls *.zip | head -n1)"
+          echo "Using $ZIP"
+          mkdir project
+          unzip -q "$ZIP" -d project
+          chmod +x project/scripts/*.sh
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Fetch native components (xray, tun2socks, dnstt)
+        working-directory: project
+        run: bash scripts/fetch-natives.sh
+
+      - name: Build APKs
+        working-directory: project
+        run: gradle :app:assembleDebug :app:assembleRelease --stacktrace
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: IsileVPN-apk
+          path: project/app/build/outputs/apk/**/*.apk
