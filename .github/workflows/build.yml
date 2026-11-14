@@ -43,13 +43,18 @@ jobs:
         working-directory: project
         run: bash scripts/fetch-natives.sh
 
-      - name: Build APKs
+      - name: Build release APK
         working-directory: project
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-        run: gradle :app:assembleDebug :app:assembleRelease --stacktrace
+        run: gradle :app:assembleRelease --stacktrace
 
-      - uses: actions/upload-artifact@v4
+      - name: Prepare APK
+        run: |
+          mkdir out
+          cp project/app/build/outputs/apk/release/*.apk out/IsileVPN.apk
+
+      - uses: actions/upload-artifact@v7
         with:
-          name: IsileVPN-apk
-          path: project/app/build/outputs/apk/**/*.apk
+          path: out/IsileVPN.apk
+          archive: false
