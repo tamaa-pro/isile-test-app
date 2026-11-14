@@ -1,4 +1,3 @@
-
 name: Build Isile VPN
 
 on:
@@ -9,23 +8,23 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
-      - name: Extract project
+      - name: Unzip project
         run: |
-          ZIP="$(find . -maxdepth 1 -type f -iname '*.zip' | head -n 1)"
-
-          if [ -z "$ZIP" ]; then
-            echo "No project ZIP found in repository root"
-            exit 1
-          fi
-
-          echo "Extracting: $ZIP"
+          ZIP="$(ls *.zip | head -n1)"
+          echo "Using $ZIP"
           mkdir project
           unzip -q "$ZIP" -d project
           chmod +x project/scripts/*.sh
+
+      - name: Restore signing keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then echo "::error::Secret KEYSTORE_BASE64 is missing"; exit 1; fi
+          echo "$KEYSTORE_BASE64" | base64 -d > project/app/isile-release.jks
 
       - uses: actions/setup-java@v4
         with:
@@ -44,14 +43,13 @@ jobs:
         working-directory: project
         run: bash scripts/fetch-natives.sh
 
-      - name: Build Release APK only
+      - name: Build APKs
         working-directory: project
-        run: gradle :app:assembleRelease --stacktrace
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        run: gradle :app:assembleDebug :app:assembleRelease --stacktrace
 
-      - name: Upload Release APK
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: IsileVPN-Release
-          path: project/app/build/outputs/apk/release/*.apk
-          if-no-files-found: error
-
+          name: IsileVPN-apk
+          path: project/app/build/outputs/apk/**/*.apk
